@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>五十音タイピングしゅぎょう - iPad対応版</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif; background: linear-gradient(to bottom, #1B3022, #3E5622); height: 100vh; display: flex; flex-direction: column; touch-action: manipulation; }
+        
+        #title-screen { position: absolute; inset: 0; background: rgba(27, 48, 34, 0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+        .title-logo { font-size: 50px; color: white; text-shadow: 3px 3px 0 #5D4037; margin-bottom: 20px; text-align: center; }
+        #high-score-display { color: #FFCA28; font-size: 20px; font-weight: bold; margin-bottom: 30px; }
+        .menu-btn { width: 400px; max-width: 80%; padding: 20px; margin: 10px; font-size: 24px; font-weight: bold; border-radius: 50px; border: 4px solid #FFCA28; transition: all 0.2s ease; outline: none; -webkit-tap-highlight-color: transparent; }
+        .btn-tutorial { background: #FFF; color: #5D4037; cursor: pointer; }
+        .btn-game { background: #999; color: #666; cursor: not-allowed; opacity: 0.7; }
+        .btn-game.ready { background: #FFCA28; color: #5D4037; opacity: 1; cursor: pointer; animation: gentle-pulse 1.5s infinite alternate; }
+        @keyframes gentle-pulse { from { transform: scale(1); } to { transform: scale(1.03); } }
+
+        #ui-top { display: none; align-items: center; justify-content: center; padding: 10px 20px; gap: 20px; height: 160px; position: relative; z-index: 100; }
+        #char-box { width: 110px; height: 110px; background: white; border: 4px solid #5D4037; border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+        #char-box img { width: 100%; height: 100%; object-fit: contain; }
+        #speech-bubble { position: relative; background: white; border: 3px solid #5D4037; border-radius: 20px; padding: 15px 20px; width: 45%; min-height: 50px; font-size: 18px; font-weight: bold; color: #5D4037; }
+        #speech-bubble::before { content: ""; position: absolute; left: -20px; top: 50%; transform: translateY(-50%); border-right: 20px solid #5D4037; border-top: 10px solid transparent; border-bottom: 10px solid transparent; }
+        
+        #status-panel { display: none; flex-direction: column; gap: 5px; position: absolute; left: 20px; top: 20px; }
+        .status-badge { background: #FFCA28; color: #5D4037; border: 3px solid #5D4037; padding: 5px 15px; border-radius: 10px; font-weight: 900; }
+        .progress-container { width: 150px; height: 12px; background: #444; border-radius: 6px; overflow: hidden; margin-top: 5px; border: 2px solid white; }
+        #progress-fill { width: 0%; height: 100%; background: #A8E063; transition: width 0.3s; }
+
+        #control-panel { position: absolute; top: 20px; right: 20px; display: none; flex-direction: column; gap: 8px; z-index: 200; }
+        .ui-btn { padding: 8px 15px; background: white; border: 2px solid #5D4037; border-radius: 10px; cursor: pointer; font-weight: bold; color: #5D4037; -webkit-tap-highlight-color: transparent; }
+
+        #game-container { position: relative; flex: 1; width: 100%; overflow: hidden; }
+        
+        .nut { position: absolute; width: 95px; height: 110px; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+        .nut::before {
+            content: ""; width: 90px; height: 36px; background: #5D4037;
+            background-image: radial-gradient(#6D4C41 20%, transparent 20%);
+            background-size: 8px 8px; border-radius: 50% 50% 15% 15%;
+            margin-bottom: -10px; z-index: 2;
+        }
+        .nut-body {
+            width: 84px; height: 75px; background: #FFF; border: 3px solid #5D4037;
+            border-radius: 10% 10% 50% 50%; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; position: relative; z-index: 1;
+        }
+        .letter-ruby { font-size: 16px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
+        .letter-ruby span.typed { color: #DDD !important; }
+        .letter { font-size: 28px; font-weight: bold; color: #5D4037; line-height: 1; margin-top: 2px; }
+
+        #keyboard-guide { width: 100%; height: 230px; background: #222; display: none; flex-direction: column; align-items: center; justify-content: center; border-top: 4px solid #5D4037; padding-bottom: 10px; }
+        .key-row { display: flex; margin-bottom: 4px; }
+        .key { width: 42px; height: 42px; margin: 2px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 18px; box-shadow: 0 3px 0 rgba(0,0,0,0.2); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        .key-space { width: 250px; }
+        .blinking { animation: blink 0.8s infinite; border: 3px solid white; box-sizing: border-box; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 3000; color: white; }
+        .modal-card { background: white; color: #333; padding: 40px; border-radius: 30px; text-align: center; border: 8px solid #FFCA28; min-width: 320px; max-width: 500px; }
+        .result-score { font-size: 48px; color: #ff5252; margin: 15px 0; font-weight: 900; }
+        .close-btn { padding: 15px 40px; font-size: 20px; background: #5D4037; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; }
+        
+        .miss-flash { animation: shake 0.2s; background-color: rgba(255, 0, 0, 0.2) !important; }
+        @keyframes shake { 0%, 100% { transform: translate(0,0); } 25% { transform: translate(8px,0); } 75% { transform: translate(-8px,0); } }
+    </style>
+</head>
+<body>
+
+<div id="title-screen">
+    <div class="title-logo">五十音タイピング<br>しゅぎょう</div>
+    <div id="high-score-display">さいこうきろく: 0点</div>
+    <button id="btn-tutorial" class="menu-btn btn-tutorial">チュートリアルモード<br><span style="font-size:14px;">（とくてんなし・じゅんび）</span></button>
+    <button id="btn-game" class="menu-btn btn-game" disabled>しゅぎょうモード<br><span style="font-size:14px;">（とくてんあり・150てんごうかく）</span></button>
+</div>
+
+<div id="ui-top">
+    <div id="status-panel">
+        <div class="status-badge" id="score-val">SCORE: 0</div>
+        <div class="status-badge" id="combo-val">COMBO: 0</div>
+        <div class="progress-container"><div id="progress-fill"></div></div>
+    </div>
+    <div id="char-box"><img src="b.png" alt="クリ坊"></div>
+    <div id="speech-bubble"></div>
+    <div id="control-panel">
+        <button id="pause-btn" class="ui-btn">一時ていし</button>
+        <button id="guide-btn" class="ui-btn">ガイド ON</button>
+        <button id="exit-btn" class="ui-btn" style="color:red; display:none;">ちゅうだん</button>
+    </div>
+</div>
+
+<div id="game-container"></div>
+<div id="keyboard-guide"></div>
+
+<div id="result-overlay" class="overlay">
+    <div class="modal-card">
+        <div id="res-title" style="font-size:24px; font-weight:bold;">しゅぎょうの けっか</div>
+        <div class="result-score" id="final-score">0点</div>
+        <div id="final-rank" style="font-size:20px; font-weight:bold; color:#FFCA28; margin-bottom:10px;"></div>
+        <div id="final-msg" style="margin-bottom:20px; font-weight:bold;"></div>
+        <button class="close-btn" id="result-close-btn">タイトルへ</button>
+    </div>
+</div>
+
+<script>
+    const fingerData = {
+        'Q': '#FF5252', 'A': '#FF5252', 'Z': '#FF5252', 'W': '#FF9800', 'S': '#FF9800', 'X': '#FF9800', 'E': '#FFEB3B', 'D': '#FFEB3B', 'C': '#FFEB3B', 'R': '#4CAF50', 'F': '#4CAF50', 'V': '#4CAF50', 'T': '#4CAF50', 'G': '#4CAF50', 'B': '#4CAF50', 'Y': '#2196F3', 'H': '#2196F3', 'N': '#2196F3', 'U': '#2196F3', 'J': '#2196F3', 'M': '#2196F3', 'I': '#9C27B0', 'K': '#9C27B0', 'O': '#E91E63', 'L': '#E91E63', 'P': '#00BCD4', 'SPACE': '#FFFFFF'
+    };
+
+    const allChars = [
+        {hira: 'あ', roma: 'A'}, {hira: 'い', roma: 'I'}, {hira: 'う', roma: 'U'}, {hira: 'え', roma: 'E'}, {hira: 'お', roma: 'O'},
+        {hira: 'か', roma: 'KA'}, {hira: 'き', roma: 'KI'}, {hira: 'く', roma: 'KU'}, {hira: 'け', roma: 'KE'}, {hira: 'こ', roma: 'KO'},
+        {hira: 'さ', roma: 'SA'}, {hira: 'し', roma: 'SI'}, {hira: 'す', roma: 'SU'}, {hira: 'せ', roma: 'SE'}, {hira: 'そ', roma: 'SO'},
+        {hira: 'た', roma: 'TA'}, {hira: 'ち', roma: 'TI'}, {hira: 'つ', roma: 'TU'}, {hira: 'て', roma: 'TE'}, {hira: 'と', roma: 'TO'},
+        {hira: 'な', roma: 'NA'}, {hira: 'に', roma: 'NI'}, {hira: 'ぬ', roma: 'NU'}, {hira: 'ね', roma: 'NE'}, {hira: 'の', roma: 'NO'},
+        {hira: 'は', roma: 'HA'}, {hira: 'ひ', roma: 'HI'}, {hira: 'ふ', roma: 'HU'}, {hira: 'へ', roma: 'HE'}, {hira: 'ほ', roma: 'HO'},
+        {hira: 'ま', roma: 'MA'}, {hira: 'み', roma: 'MI'}, {hira: 'む', roma: 'MU'}, {hira: 'め', roma: 'ME'}, {hira: 'も', roma: 'MO'},
+        {hira: 'や', roma: 'YA'}, {hira: 'ゆ', roma: 'YU'}, {hira: 'よ', roma: 'YO'},
+        {hira: 'ら', roma: 'RA'}, {hira: 'り', roma: 'RI'}, {hira: 'る', roma: 'RU'}, {hira: 'れ', roma: 'RE'}, {hira: 'ろ', roma: 'RO'},
+        {hira: 'わ', roma: 'WA'}, {hira: 'を', roma: 'WO'}, {hira: 'ん', roma: 'NN'},
+        {hira: 'が', roma: 'GA'}, {hira: 'ぎ', roma: 'GI'}, {hira: 'ぐ', roma: 'GU'}, {hira: 'げ', roma: 'GE'}, {hira: 'ご', roma: 'GO'},
+        {hira: 'ざ', roma: 'ZA'}, {hira: 'じ', roma: 'ZI'}, {hira: 'ず', roma: 'ZU'}, {hira: 'ぜ', roma: 'ZE'}, {hira: 'ぞ', roma: 'ZO'},
+        {hira: 'だ', roma: 'DA'}, {hira: 'ぢ', roma: 'DI'}, {hira: 'づ', roma: 'DU'}, {hira: 'で', roma: 'DE'}, {hira: 'ど', roma: 'DO'},
+        {hira: 'ば', roma: 'BA'}, {hira: 'び', roma: 'BI'}, {hira: 'ぶ', roma: 'BU'}, {hira: 'べ', roma: 'BE'}, {hira: 'ぼ', roma: 'BO'},
+        {hira: 'ぱ', roma: 'PA'}, {hira: 'ぴ', roma: 'PI'}, {hira: 'ぷ', roma: 'PU'}, {hira: 'ぺ', roma: 'PE'}, {hira: 'ぽ', roma: 'PO'},
+        {hira: 'きゃ', roma: 'KYA'}, {hira: 'きゅ', roma: 'KYU'}, {hira: 'きょ', roma: 'KYO'},
+        {hira: 'しゃ', roma: 'SYA'}, {hira: 'しゅ', roma: 'SYU'}, {hira: 'しょ', roma: 'SYO'},
+        {hira: 'ちゃ', roma: 'TYA'}, {hira: 'ちゅ', roma: 'TYU'}, {hira: 'ちょ', roma: 'TYO'},
+        {hira: 'にゃ', roma: 'NYA'}, {hira: 'にゅ', roma: 'NYU'}, {hira: 'にょ', roma: 'NYO'},
+        {hira: 'ひゃ', roma: 'HYA'}, {hira: 'ひゅ', roma: 'HYU'}, {hira: 'ひょ', roma: 'HYO'},
+        {hira: 'みゃ', roma: 'MYA'}, {hira: 'みゅ', roma: 'MYU'}, {hira: 'みょ', roma: 'MYO'},
+        {hira: 'りゃ', roma: 'RYA'}, {hira: 'りゅ', roma: 'RYU'}, {hira: 'りょ', roma: 'RYO'},
+        {hira: 'じゃ', roma: 'ZYA'}, {hira: 'じゅ', roma: 'ZYU'}, {hira: 'じょ', roma: 'ZYO'}
+    ];
+
+    let gameState = "TITLE", score = 0, combo = 0, tutIdx = 0, isTutorial = true;
+    let activeNuts = [], spawnTimer = null, guideVisible = true;
+
+    const titleScreen = document.getElementById('title-screen'),
+          gameBtn = document.getElementById('btn-game'),
+          uiTop = document.getElementById('ui-top'),
+          guide = document.getElementById('keyboard-guide'),
+          container = document.getElementById('game-container'),
+          bubble = document.getElementById('speech-bubble'),
+          progFill = document.getElementById('progress-fill'),
+          exitBtn = document.getElementById('exit-btn'),
+          highScoreDisplay = document.getElementById('high-score-display');
+
+    function init() {
+        initKeyboard();
+        // 最高記録の読み込みと表示
+        const highScore = localStorage.getItem('hira_high_score') || 0;
+        highScoreDisplay.innerText = `さいこうきろく: ${highScore}点`;
+
+        if (localStorage.getItem('hira_tutorial_done')) {
+            gameBtn.classList.add('ready'); gameBtn.disabled = false;
+        }
+    }
+
+    function initKeyboard() {
+        guide.innerHTML = "";
+        [["Q","W","E","R","T","Y","U","I","O","P"],["A","S","D","F","G","H","J","K","L"],["Z","X","C","V","B","N","M"],["SPACE"]].forEach(row => {
+            const rowDiv = document.createElement('div'); rowDiv.className = 'key-row';
+            row.forEach(char => {
+                const k = document.createElement('div'); k.className = 'key' + (char === "SPACE" ? " key-space" : "");
+                k.id = `key-${char}`; k.innerText = char === "SPACE" ? "SPACE" : char;
+                k.style.backgroundColor = fingerData[char];
+                const handleInput = (e) => { e.preventDefault(); processInput(char === "SPACE" ? " " : char); };
+                k.addEventListener('touchstart', handleInput);
+                k.addEventListener('mousedown', handleInput);
+                rowDiv.appendChild(k);
+            });
+            guide.appendChild(rowDiv);
+        });
+    }
+
+    function typeText(text) {
+        clearTimeout(window.typeTimeout); bubble.innerText = ""; let i = 0;
+        function type() {
+            if (i < text.length) { bubble.innerText += text.charAt(i); i++; window.typeTimeout = setTimeout(type, 40); }
+        }
+        type();
+    }
+
+    document.getElementById('btn-tutorial').onclick = () => {
+        titleScreen.style.display = "none"; uiTop.style.display = "flex"; guide.style.display = "flex";
+        document.getElementById('status-panel').style.display = "flex";
+        document.getElementById('control-panel').style.display = "flex";
+        isTutorial = true; tutIdx = 0; score = 0; combo = 0; gameState = "TUT_WAIT";
+        progFill.style.backgroundColor = "#A8E063";
+        typeText("こんにちは！ボク、クリ坊。まずは全ての打ちかたを れんしゅうするの。下のスペースキーをおして開始なの！");
+        document.getElementById('key-SPACE').classList.add('blinking');
+    };
+
+    gameBtn.onclick = () => {
+        titleScreen.style.display = "none"; uiTop.style.display = "flex"; guide.style.display = "flex";
+        document.getElementById('status-panel').style.display = "flex";
+        document.getElementById('control-panel').style.display = "flex";
+        isTutorial = false; score = 0; combo = 0; gameState = "GAME_WAIT";
+        progFill.style.backgroundColor = "#FF5252";
+        typeText("しゅぎょう本ばん（ほんばん）だよ！150点をめざして がんばるの。\nスペースキーをおして開始なの！");
+        document.getElementById('key-SPACE').classList.add('blinking');
+    };
+
+    function startNuts() {
+        gameState = isTutorial ? "TUT_PLAY" : "GAME_PLAY";
+        document.getElementById('key-SPACE').classList.remove('blinking');
+        typeText(isTutorial ? "一文字ずつ、ゆっくりでいいから うってみて。" : "どんどん うって、木の実をあつめるの！");
+        spawnNut();
+    }
+
+    function spawnNut() {
+        if (gameState !== "TUT_PLAY" && gameState !== "GAME_PLAY") return;
+        const data = isTutorial ? allChars[tutIdx] : allChars[Math.floor(Math.random() * allChars.length)];
+        const nut = document.createElement('div');
+        nut.className = 'nut';
+        nut.style.left = (Math.random() * (window.innerWidth - 120) + 60) + 'px';
+        nut.style.top = '-120px';
+        
+        let rubyHtml = '';
+        for(let char of data.roma) {
+            const color = fingerData[char.toUpperCase()] || '#5D4037';
+            rubyHtml += `<span style="color:${color}">${char}</span>`;
+        }
+        
+        nut.innerHTML = `<div class="nut-body"><div class="letter-ruby">${rubyHtml}</div><div class="letter">${data.hira}</div></div>`;
+        container.appendChild(nut);
+
+        let speed = 1.3 + (score / 150) * 3.5;
+        if (combo > 5) speed += (combo - 5) * 0.05;
+        let finalSpeed = speed + (Math.random() * 0.6 - 0.3);
+
+        const move = setInterval(() => {
+            if (gameState === "TUT_PLAY" || gameState === "GAME_PLAY") {
+                let top = parseFloat(nut.style.top) + finalSpeed;
+                nut.style.top = top + 'px';
+                if (!isTutorial && score > 100) nut.style.transform = `translateX(${Math.sin(top/25)*20}px)`;
+                if (top > window.innerHeight - 340) {
+                    clearInterval(move); nut.remove();
+                    activeNuts = activeNuts.filter(n => n.element !== nut);
+                    if (!isTutorial) { score = Math.max(0, score - 3); combo = 0; updateUI(); }
+                    if (isTutorial) spawnNut(); 
+                }
+            } else if (gameState === "RESULT" || gameState === "TITLE") { clearInterval(move); }
+        }, 20);
+        activeNuts.push({ element: nut, roma: data.roma, typed: 0, interval: move });
+        if (!isTutorial) {
+            let nextDelay = Math.max(450, 3000 - (score * 18));
+            spawnTimer = setTimeout(spawnNut, nextDelay);
+        }
+    }
+
+    function processInput(key) {
+        if (gameState === "PAUSE") return;
+        key = key.toUpperCase();
+        if ((gameState === "TUT_WAIT" || gameState === "GAME_WAIT") && key === " ") { startNuts(); return; }
+        let hit = false;
+        for (let i = 0; i < activeNuts.length; i++) {
+            const target = activeNuts[i];
+            if (key === target.roma[target.typed].toUpperCase()) {
+                const spans = target.element.querySelectorAll('.letter-ruby span');
+                spans[target.typed].classList.add('typed');
+                target.typed++; hit = true;
+                if (target.typed === target.roma.length) {
+                    clearInterval(target.interval); target.element.remove();
+                    activeNuts.splice(i, 1);
+                    const charBox = document.getElementById('char-box');
+                    charBox.style.transform = 'scale(1.2)';
+                    setTimeout(() => charBox.style.transform = 'scale(1)', 200);
+                    if (isTutorial) {
+                        tutIdx++;
+                        if (tutIdx >= allChars.length) {
+                            localStorage.setItem('hira_tutorial_done', 'true');
+                            typeText("すごい！ぜんぶクリアなの。これで本ばんモードが あそべるよ。");
+                            setTimeout(showResult, 2500, true);
+                        } else { spawnNut(); }
+                    } else { score++; combo++; updateUI(); }
+                }
+                break;
+            }
+        }
+        if (!hit && !["SHIFT","CONTROL","ALT","META"," "].includes(key) && gameState.includes("PLAY")) {
+            if (!isTutorial) { score = Math.max(0, score - 1); combo = 0; updateUI(); }
+            document.body.classList.add('miss-flash');
+            setTimeout(() => document.body.classList.remove('miss-flash'), 100);
+        }
+        if (!isTutorial && score >= 150) showResult(true);
+    }
+
+    window.addEventListener('keydown', (e) => processInput(e.code === "Space" ? " " : e.key));
+
+    function updateUI() {
+        document.getElementById('score-val').innerText = `SCORE: ${score}`;
+        document.getElementById('combo-val').innerText = `COMBO: ${combo}`;
+        let prog = isTutorial ? (tutIdx / allChars.length) : (score / 150);
+        progFill.style.width = (Math.min(1, prog) * 100) + "%";
+    }
+
+    function showResult(isWin) {
+        gameState = "RESULT";
+        clearTimeout(spawnTimer);
+        activeNuts.forEach(n => { clearInterval(n.interval); n.element.remove(); });
+        activeNuts = []; container.innerHTML = "";
+
+        // 本番モードの場合、ハイスコアを保存
+        if (!isTutorial) {
+            const currentHigh = parseInt(localStorage.getItem('hira_high_score') || 0);
+            if (score > currentHigh) {
+                localStorage.setItem('hira_high_score', score);
+            }
+        }
+
+        let rank = "森のまいご";
+        if (score >= 150) rank = "森の守護神（しゅごしん）";
+        else if (score >= 100) rank = "どんぐり大将（たいしょう）";
+        else if (score >= 50) rank = "見習い（みならい）リス";
+        
+        document.getElementById('final-score').innerText = isTutorial ? "ごうかく なの！" : score + "点";
+        document.getElementById('final-rank').innerText = isTutorial ? "" : "ランク: " + rank;
+        document.getElementById('final-msg').innerText = isTutorial ? "ボクといっしょに たくさん れんしゅうしてくれて ありがとう！" : "次はもっと高いスコアを めざすの。\nおうえんしてるよ！";
+        document.getElementById('result-overlay').style.display = "flex";
+    }
+
+    document.getElementById('result-close-btn').onclick = () => location.reload();
+
+    document.getElementById('pause-btn').onclick = function() {
+        if (gameState.includes("PLAY")) {
+            gameState = "PAUSE"; this.innerText = "再開（さいかい）"; exitBtn.style.display = "block";
+            typeText("一時ていし中だよ。休んだら また始めるの。");
+        } else if (gameState === "PAUSE") {
+            gameState = isTutorial ? "TUT_PLAY" : "GAME_PLAY"; this.innerText = "一時ていし"; exitBtn.style.display = "none";
+            typeText("さあ、つづきを始めるの！");
+        }
+    };
+
+    document.getElementById('guide-btn').onclick = function() {
+        guideVisible = !guideVisible;
+        guide.style.visibility = guideVisible ? "visible" : "hidden";
+        this.innerText = guideVisible ? "ガイド ON" : "ガイド OFF";
+    };
+
+    document.getElementById('exit-btn').onclick = () => { 
+        if(confirm("しゅぎょうを おわりにするの？そこまでの スコアを きろくするよ！")) {
+            showResult(false);
+        }
+    };
+
+    init();
+</script>
+</body>
+</html>
